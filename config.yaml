@@ -1,0 +1,46 @@
+# Mini-Forge configuration
+# Everything the pipeline and the gate need lives here, so thresholds are explicit
+# and auditable (an enterprise-evaluation virtue, not an afterthought).
+
+models:
+  # Small model for the MVP. Swap to a Mistral-Small / Medium-3.5 checkpoint when
+  # you have multi-GPU access; nothing else in the pipeline changes.
+  base_model: "mistralai/Ministral-8B-Instruct-2410"
+  tuned_model_path: "./training/outputs/tuned-lora"
+  # A strong model used only as the LLM-as-judge. Keep judge != model-under-test.
+  judge_model: "claude-or-gpt-or-served-mistral"   # TODO: wire to your judge
+
+generation:
+  # fixture = plumbing smoke test using precomputed fixture fields in eval_set.jsonl.
+  # It does NOT prove baseline-vs-tuned model improvement.
+  # openai_compatible = call vLLM, Mistral API, or any /v1/chat/completions server.
+  # transformers = run a local Hugging Face model in-process.
+  mode: "fixture"
+  fixture_smoke_test: true
+  fixture_response_fields:
+    base: "base_response"
+    tuned: "tuned_response"
+  base_url: "http://localhost:8000/v1"
+  api_key_env: "OPENAI_API_KEY"
+  temperature: 0.0
+  max_tokens: 512
+  timeout_seconds: 120
+
+data:
+  policy_docs_dir: "./data/policy_docs"            # public regulatory text proxies
+  synthetic_train: "./data/synthetic_train.jsonl"
+  eval_set: "./data/eval_set.jsonl"                # held-out, never seen in training
+  languages: ["en"]                                # add "ko" for a Gemini i18n slice
+
+results_dir: "./results"
+
+# Promotion gate thresholds. Promote ONLY if usefulness improves AND every
+# regression metric stays within bounds. Tune these per use case.
+gate:
+  min_usefulness_gain: 0.05        # tuned usefulness must beat baseline by >= 5 pts
+  max_regression_deltas:
+    hallucination_rate: 0.00       # must not increase vs baseline
+    over_refusal_rate: 0.02        # small tolerance
+    unsafe_confidence_rate: 0.00   # must not increase (calibration must not worsen)
+    format_adherence: -0.00        # must not drop (negative delta = worse)
+    tool_use_reliability: -0.02

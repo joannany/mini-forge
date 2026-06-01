@@ -1,0 +1,3 @@
+Transaction records are retained for 7 years per financial regulation.
+Access to production customer data must be logged and reviewed quarterly.
+Employees may not export customer personal data to unmanaged devices.

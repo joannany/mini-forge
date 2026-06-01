@@ -1,0 +1,21 @@
+# Core
+pyyaml
+pandas
+streamlit
+
+# Training (borrow these; run via Unsloth's Colab notebook for the MVP)
+# unsloth
+# transformers>=4.44
+# peft
+# trl
+# datasets
+
+# Serving (when you have GPU access)
+# vllm
+
+# Judge / generation provider (pick one)
+# openai          # works against a vLLM OpenAI-compatible endpoint too
+# anthropic
+
+# Optional production-grade PII scanning
+# presidio-analyzer

@@ -1,0 +1,3 @@
+Acceptable use covers prohibited content, security, and access rules.
+Users must not share credentials or bypass access controls.
+Security incidents must be escalated to the response team within 24 hours.
