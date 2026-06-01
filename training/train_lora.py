@@ -130,6 +130,7 @@ def main():
         "bf16": args.precision == "bf16",
         "output_dir": args.out,
         "dataset_text_field": "text",
+        "dataset_num_proc": 1,
         "max_length": args.max_seq_length,
         "max_seq_length": args.max_seq_length,
         "per_device_train_batch_size": args.batch_size,
