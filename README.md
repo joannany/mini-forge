@@ -186,6 +186,9 @@ python -m training.train_lora \
   --max-steps 80
 ```
 
+The training script defaults to T4-safe `fp16`; pass `--precision bf16` only on
+Ampere+ GPUs.
+
 Then serve the adapter or a merged model via vLLM and rerun the same evaluation gate.
 
 ## Layout

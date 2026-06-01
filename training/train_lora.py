@@ -57,6 +57,12 @@ def main():
     ap.add_argument("--learning-rate", type=float, default=2e-4)
     ap.add_argument("--lora-r", type=int, default=16)
     ap.add_argument("--lora-alpha", type=int, default=16)
+    ap.add_argument(
+        "--precision",
+        choices=["fp16", "bf16"],
+        default="fp16",
+        help="T4-safe default is fp16. Use bf16 only on Ampere+ GPUs.",
+    )
     args = ap.parse_args()
 
     try:
@@ -109,6 +115,8 @@ def main():
         dataset_text_field="text",
         max_seq_length=args.max_seq_length,
         args=SFTConfig(
+            fp16=args.precision == "fp16",
+            bf16=args.precision == "bf16",
             output_dir=args.out,
             per_device_train_batch_size=args.batch_size,
             gradient_accumulation_steps=args.grad_accum,

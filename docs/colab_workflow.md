@@ -47,6 +47,9 @@ setup and keep the remaining commands the same.
   --max-steps 80
 ```
 
+The script defaults to `--precision fp16`, which is required on free Colab T4 GPUs.
+Use `--precision bf16` only on Ampere+ GPUs such as A100/L4/H100.
+
 If adapter loading fails later, merge/save the model using Unsloth's current notebook
 pattern, then pass the merged model directory as `--tuned-model`.
 
