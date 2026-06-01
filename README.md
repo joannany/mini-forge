@@ -137,21 +137,46 @@ Fixture mode is intentionally included so the eval/dashboard plumbing is runnabl
 a laptop. It is **not** a model-quality result and does **not** run the deployment
 gate.
 
-For real baseline-vs-tuned numbers, use the recommended Colab workflow: train the LoRA,
-precompute base/tuned responses into `data/eval_set.jsonl`, then run the harness with
-`fixture_smoke_test: false`. See [`docs/colab_workflow.md`](docs/colab_workflow.md).
-Serving through vLLM or another OpenAI-compatible endpoint is also supported, but it is
-not the easiest path inside a single Colab session.
+For real before/after numbers, use the recommended Colab workflow. The primary path is
+a **prompt intervention**: generate responses from the same base model with a bare
+prompt and with Mini-Forge's compliant system prompt, write those responses into
+`data/eval_set.jsonl`, then run the real gate with `fixture_smoke_test: false`. This
+measures a behavioral prompt intervention, not a fine-tune. The source-tag and gate
+contract for this path is validated in the repo; model generation itself runs in Colab.
+See [`docs/colab_workflow.md`](docs/colab_workflow.md).
 
 ## Real model paths
 
-### Recommended Colab path: precompute real responses
+### Fast Colab path: prompt intervention
 
-For a single-GPU Colab/RunPod run, do **not** run a localhost vLLM server just to
-evaluate. Train the LoRA, generate base/tuned responses in the notebook, write them
-into `data/eval_set.jsonl`, then run the harness with `fixture_smoke_test: false`.
+This produces real gate numbers without LoRA training. It is the recommended first
+path for a fresh clone because it exercises the same gate without depending on a
+successful LoRA run:
 
-See [`docs/colab_workflow.md`](docs/colab_workflow.md).
+```bash
+python -m scripts.generate_prompt_baseline \
+  --eval data/eval_set.jsonl \
+  --model unsloth/mistral-7b-instruct-v0.3-bnb-4bit
+
+python - <<'PY'
+import yaml
+path = "config.yaml"
+cfg = yaml.safe_load(open(path))
+cfg["generation"]["mode"] = "fixture"
+cfg["generation"]["fixture_smoke_test"] = False
+yaml.safe_dump(cfg, open(path, "w"))
+PY
+
+python -m eval.harness --config config.yaml
+```
+
+The resulting baseline is `prompt:bare`; the tuned condition is `prompt:compliant`.
+
+### Full Colab path: LoRA intervention
+
+For the fuller version, train the LoRA, generate base/tuned responses in the notebook,
+write them into `data/eval_set.jsonl`, then run the same gate. This path is implemented
+but has not yet been GPU-validated end to end. See [`docs/colab_workflow.md`](docs/colab_workflow.md).
 
 ### Path A: evaluate a served model
 
@@ -176,7 +201,8 @@ python -m eval.harness --config config.yaml
 
 ### Path B: train a real LoRA adapter
 
-Run this in a CUDA environment with Unsloth/TRL installed:
+Run this in a CUDA environment with Unsloth, Transformers, Datasets, and Accelerate
+installed:
 
 ```bash
 python -m training.train_lora \
@@ -187,7 +213,9 @@ python -m training.train_lora \
 ```
 
 The training script defaults to T4-safe `fp16`; pass `--precision bf16` only on
-Ampere+ GPUs.
+Ampere+ GPUs. It pre-tokenizes examples and uses `transformers.Trainer` directly,
+avoiding TRL's dataset multiprocessing path on Colab. This training path is implemented
+but still needs Colab/GPU validation.
 
 Then serve the adapter or a merged model via vLLM and rerun the same evaluation gate.
 
@@ -197,8 +225,9 @@ Then serve the adapter or a merged model via vLLM and rerun the same evaluation 
 |---|---|---|
 | `data/generate_synthetic.py` | synthetic instruction data from policy docs | working |
 | `data/prepare_data.py` | validation, dedupe, PII scan, leakage check | working |
-| `training/train_lora.py` | QLoRA/SFT training entry point for GPU envs | working |
-| `scripts/generate_eval_responses.py` | Colab response precompute for real fixture gates | working |
+| `training/train_lora.py` | QLoRA training entry point for GPU envs | implemented, GPU validation pending |
+| `scripts/generate_eval_responses.py` | Colab response precompute for LoRA fixture gates | implemented, adapter loading GPU validation pending |
+| `scripts/generate_prompt_baseline.py` | prompt-intervention responses for training-free real gates | implemented, source-tag/gate contract validated |
 | `docs/colab_workflow.md` | reproducible Colab workflow for real numbers | doc |
 | `eval/provider.py` | fixture / OpenAI-compatible / transformers generation | working |
 | `eval/harness.py` | orchestrates suites, writes results, calls gate | working |

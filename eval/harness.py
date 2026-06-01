@@ -99,7 +99,7 @@ def main():
             "usefulness_gain": None,
             "reasons": [
                 "fixture smoke test only; no real baseline-vs-tuned model comparison",
-                "set generation.mode=openai_compatible and serve real models to run the deployment gate",
+                "generate real model responses with scripts/generate_prompt_baseline.py or scripts/generate_eval_responses.py, then set fixture_smoke_test=false",
             ],
             "regression_breaches": {},
             "smoke_test": True,

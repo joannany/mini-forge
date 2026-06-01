@@ -3,11 +3,11 @@ pyyaml
 pandas
 streamlit
 
-# Training (borrow these; run via Unsloth's Colab notebook for the MVP)
+# Training / model generation (install in Colab or another GPU environment)
 # unsloth
-# transformers>=4.44
+# transformers
+# accelerate
 # peft
-# trl
 # datasets
 
 # Serving (when you have GPU access)

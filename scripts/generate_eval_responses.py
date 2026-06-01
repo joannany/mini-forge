@@ -24,13 +24,46 @@ def write_jsonl(path: str, items: Iterable[Dict]) -> None:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
 
-def load_unsloth_model(model_id: str, max_seq_length: int):
+def _adapter_base_model(adapter_dir: Path, fallback: str) -> str:
+    adapter_config = adapter_dir / "adapter_config.json"
+    if not adapter_config.exists():
+        return fallback
+    try:
+        data = json.loads(adapter_config.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return fallback
+    return data.get("base_model_name_or_path") or fallback
+
+
+def load_unsloth_model(model_id: str, max_seq_length: int, adapter_base_model: str = None):
     try:
         from unsloth import FastLanguageModel
     except ImportError as exc:
         raise SystemExit(
-            "Missing Unsloth. In Colab, install with: pip install unsloth trl datasets"
+            "Missing Unsloth. In Colab, install with: pip install unsloth datasets transformers accelerate"
         ) from exc
+
+    model_path = Path(model_id)
+    if model_path.exists() and (model_path / "adapter_config.json").exists():
+        try:
+            from peft import PeftModel
+        except ImportError as exc:
+            raise SystemExit("Loading a LoRA adapter directory requires peft.") from exc
+
+        base_model = _adapter_base_model(model_path, adapter_base_model)
+        if not base_model:
+            raise SystemExit(
+                f"{model_id} looks like a LoRA adapter, but no base model was provided. "
+                "Pass --adapter-base-model."
+            )
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=base_model,
+            max_seq_length=max_seq_length,
+            load_in_4bit=True,
+        )
+        model = PeftModel.from_pretrained(model, model_id)
+        FastLanguageModel.for_inference(model)
+        return model, tokenizer
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_id,
@@ -41,8 +74,12 @@ def load_unsloth_model(model_id: str, max_seq_length: int):
     return model, tokenizer
 
 
-def generate_answers(model_id: str, items: List[Dict], max_seq_length: int, max_new_tokens: int) -> List[str]:
-    model, tokenizer = load_unsloth_model(model_id, max_seq_length)
+def generate_answers(model_id: str,
+                     items: List[Dict],
+                     max_seq_length: int,
+                     max_new_tokens: int,
+                     adapter_base_model: str = None) -> List[str]:
+    model, tokenizer = load_unsloth_model(model_id, max_seq_length, adapter_base_model)
     outputs = []
     for item in items:
         input_ids = tokenizer.apply_chat_template(
@@ -70,6 +107,11 @@ def main():
     ap.add_argument("--eval", default="data/eval_set.jsonl")
     ap.add_argument("--base-model", default="unsloth/mistral-7b-instruct-v0.3-bnb-4bit")
     ap.add_argument("--tuned-model", default="training/outputs/tuned-lora")
+    ap.add_argument(
+        "--adapter-base-model",
+        default="unsloth/mistral-7b-instruct-v0.3-bnb-4bit",
+        help="Base model to load before applying a local LoRA adapter directory.",
+    )
     ap.add_argument("--out", default=None, help="defaults to overwriting --eval")
     ap.add_argument("--max-seq-length", type=int, default=4096)
     ap.add_argument("--max-new-tokens", type=int, default=512)
@@ -89,7 +131,13 @@ def main():
         base = generate_answers(args.base_model, items, args.max_seq_length, args.max_new_tokens)
 
     print(f"generating tuned responses with {args.tuned_model}")
-    tuned = generate_answers(args.tuned_model, items, args.max_seq_length, args.max_new_tokens)
+    tuned = generate_answers(
+        args.tuned_model,
+        items,
+        args.max_seq_length,
+        args.max_new_tokens,
+        adapter_base_model=args.adapter_base_model,
+    )
 
     for item, base_response, tuned_response in zip(items, base, tuned):
         item["base_response"] = base_response
