@@ -12,6 +12,7 @@ Example:
       --max-steps 60
 """
 import argparse
+import inspect
 import json
 from typing import Dict, List
 
@@ -43,6 +44,21 @@ def make_messages(item: Dict) -> List[Dict[str, str]]:
         {"role": "user", "content": user},
         {"role": "assistant", "content": item["response"]},
     ]
+
+
+def _supports_parameter(callable_obj, name: str) -> bool:
+    signature = inspect.signature(callable_obj)
+    return (
+        name in signature.parameters
+        or any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values())
+    )
+
+
+def _filtered_kwargs(callable_obj, kwargs: Dict) -> Dict:
+    signature = inspect.signature(callable_obj)
+    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()):
+        return kwargs
+    return {key: value for key, value in kwargs.items() if key in signature.parameters}
 
 
 def main():
@@ -108,30 +124,42 @@ def main():
         return {"text": text}
 
     dataset = Dataset.from_list([format_example(item) for item in rows])
-    trainer = SFTTrainer(
-        model=model,
-        tokenizer=tokenizer,
-        train_dataset=dataset,
-        dataset_text_field="text",
-        max_seq_length=args.max_seq_length,
-        args=SFTConfig(
-            fp16=args.precision == "fp16",
-            bf16=args.precision == "bf16",
-            output_dir=args.out,
-            per_device_train_batch_size=args.batch_size,
-            gradient_accumulation_steps=args.grad_accum,
-            max_steps=args.max_steps,
-            learning_rate=args.learning_rate,
-            logging_steps=5,
-            save_strategy="steps",
-            save_steps=max(args.max_steps, 1),
-            optim="adamw_8bit",
-            warmup_steps=5,
-            lr_scheduler_type="linear",
-            seed=3407,
-            report_to=[],
-        ),
-    )
+
+    sft_config_kwargs = {
+        "fp16": args.precision == "fp16",
+        "bf16": args.precision == "bf16",
+        "output_dir": args.out,
+        "dataset_text_field": "text",
+        "max_length": args.max_seq_length,
+        "max_seq_length": args.max_seq_length,
+        "per_device_train_batch_size": args.batch_size,
+        "gradient_accumulation_steps": args.grad_accum,
+        "max_steps": args.max_steps,
+        "learning_rate": args.learning_rate,
+        "logging_steps": 5,
+        "save_strategy": "steps",
+        "save_steps": max(args.max_steps, 1),
+        "optim": "adamw_8bit",
+        "warmup_steps": 5,
+        "lr_scheduler_type": "linear",
+        "seed": 3407,
+        "report_to": [],
+    }
+    sft_config = SFTConfig(**_filtered_kwargs(SFTConfig, sft_config_kwargs))
+
+    trainer_kwargs = {
+        "model": model,
+        "train_dataset": dataset,
+        "args": sft_config,
+    }
+    if _supports_parameter(SFTTrainer, "processing_class"):
+        trainer_kwargs["processing_class"] = tokenizer
+    elif _supports_parameter(SFTTrainer, "tokenizer"):
+        trainer_kwargs["tokenizer"] = tokenizer
+    else:
+        raise SystemExit("Installed TRL SFTTrainer accepts neither processing_class nor tokenizer.")
+
+    trainer = SFTTrainer(**trainer_kwargs)
     trainer.train()
     model.save_pretrained(args.out)
     tokenizer.save_pretrained(args.out)
