@@ -42,7 +42,7 @@ setup and keep the remaining commands the same.
 ```python
 !python -m training.train_lora \
   --train data/synthetic_train.clean.jsonl \
-  --base-model unsloth/Ministral-8B-Instruct-2410 \
+  --base-model unsloth/mistral-7b-instruct-v0.3-bnb-4bit \
   --out training/outputs/tuned-lora \
   --max-steps 80
 ```
@@ -55,7 +55,7 @@ pattern, then pass the merged model directory as `--tuned-model`.
 ```python
 !python -m scripts.generate_eval_responses \
   --eval data/eval_set.jsonl \
-  --base-model unsloth/Ministral-8B-Instruct-2410 \
+  --base-model unsloth/mistral-7b-instruct-v0.3-bnb-4bit \
   --tuned-model training/outputs/tuned-lora
 ```
 

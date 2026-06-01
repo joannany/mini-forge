@@ -181,7 +181,7 @@ Run this in a CUDA environment with Unsloth/TRL installed:
 ```bash
 python -m training.train_lora \
   --train data/synthetic_train.clean.jsonl \
-  --base-model unsloth/Ministral-8B-Instruct-2410 \
+  --base-model unsloth/mistral-7b-instruct-v0.3-bnb-4bit \
   --out training/outputs/tuned-lora \
   --max-steps 80
 ```

@@ -68,7 +68,7 @@ def generate_answers(model_id: str, items: List[Dict], max_seq_length: int, max_
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--eval", default="data/eval_set.jsonl")
-    ap.add_argument("--base-model", default="unsloth/Ministral-8B-Instruct-2410")
+    ap.add_argument("--base-model", default="unsloth/mistral-7b-instruct-v0.3-bnb-4bit")
     ap.add_argument("--tuned-model", default="training/outputs/tuned-lora")
     ap.add_argument("--out", default=None, help="defaults to overwriting --eval")
     ap.add_argument("--max-seq-length", type=int, default=4096)

@@ -5,7 +5,7 @@
 models:
   # Small model for the MVP. Swap to a Mistral-Small / Medium-3.5 checkpoint when
   # you have multi-GPU access; nothing else in the pipeline changes.
-  base_model: "mistralai/Ministral-8B-Instruct-2410"
+  base_model: "unsloth/mistral-7b-instruct-v0.3-bnb-4bit"
   tuned_model_path: "./training/outputs/tuned-lora"
   # A strong model used only as the LLM-as-judge. Keep judge != model-under-test.
   judge_model: "claude-or-gpt-or-served-mistral"   # TODO: wire to your judge

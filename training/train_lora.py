@@ -7,7 +7,7 @@ RunPod, Lambda, or another CUDA environment after installing Unsloth + TRL.
 Example:
     python -m training.train_lora \
       --train data/synthetic_train.jsonl \
-      --base-model unsloth/Ministral-8B-Instruct-2410 \
+      --base-model unsloth/mistral-7b-instruct-v0.3-bnb-4bit \
       --out training/outputs/tuned-lora \
       --max-steps 60
 """
@@ -48,7 +48,7 @@ def make_messages(item: Dict) -> List[Dict[str, str]]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", default="data/synthetic_train.jsonl")
-    ap.add_argument("--base-model", default="unsloth/Ministral-8B-Instruct-2410")
+    ap.add_argument("--base-model", default="unsloth/mistral-7b-instruct-v0.3-bnb-4bit")
     ap.add_argument("--out", default="training/outputs/tuned-lora")
     ap.add_argument("--max-seq-length", type=int, default=4096)
     ap.add_argument("--max-steps", type=int, default=80)
