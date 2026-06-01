@@ -14,7 +14,11 @@ Example:
 import argparse
 import inspect
 import json
+import os
 from typing import Dict, List
+
+os.environ.setdefault("HF_DATASETS_DISABLE_MULTIPROCESSING", "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 
 SYSTEM_PROMPT = """You are a compliance assistant for regulated enterprise policy QA.
@@ -61,6 +65,31 @@ def _filtered_kwargs(callable_obj, kwargs: Dict) -> Dict:
     return {key: value for key, value in kwargs.items() if key in signature.parameters}
 
 
+def _force_single_process_dataset_map():
+    """Force datasets.map calls to stay single-process.
+
+    Some TRL/Unsloth Colab combinations ignore SFTConfig.dataset_num_proc and call
+    Dataset.map(num_proc=6), which tries to pickle patched objects and fails. The
+    Mini-Forge dataset is tiny, so multiprocessing only adds fragility.
+    """
+    try:
+        import datasets.arrow_dataset
+    except ImportError:
+        return
+
+    original_map = datasets.arrow_dataset.Dataset.map
+    if getattr(original_map, "_miniforge_single_proc", False):
+        return
+
+    def single_process_map(self, *args, **kwargs):
+        if kwargs.get("num_proc", 1) not in (None, 0, 1):
+            kwargs["num_proc"] = 1
+        return original_map(self, *args, **kwargs)
+
+    single_process_map._miniforge_single_proc = True
+    datasets.arrow_dataset.Dataset.map = single_process_map
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", default="data/synthetic_train.jsonl")
@@ -91,6 +120,7 @@ def main():
             "  pip install unsloth trl datasets\n"
             "Then rerun this script."
         ) from exc
+    _force_single_process_dataset_map()
 
     rows = load_jsonl(args.train)
     if not rows:

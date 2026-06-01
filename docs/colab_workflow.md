@@ -49,6 +49,8 @@ setup and keep the remaining commands the same.
 
 The script defaults to `--precision fp16`, which is required on free Colab T4 GPUs.
 Use `--precision bf16` only on Ampere+ GPUs such as A100/L4/H100.
+It also forces single-process dataset tokenization because the tiny demo dataset does
+not need multiprocessing, and patched Colab/Unsloth objects can fail pickling.
 
 If adapter loading fails later, merge/save the model using Unsloth's current notebook
 pattern, then pass the merged model directory as `--tuned-model`.
