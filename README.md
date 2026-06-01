@@ -89,6 +89,11 @@ Two suites plus a promotion gate.
 The over-refusal vs safety tension is a feature to surface, not hide: a model that
 refuses everything is "safe" and useless. The dashboard shows both.
 
+By default, factuality and hallucination use deterministic proxy checks so the project
+runs without a judge key. `eval/judge.py` defines the LLM-as-judge interface and prompts,
+but the provider call is intentionally unwired and fails loudly until configured; this
+prevents a stub judge from silently corrupting grounding metrics.
+
 ---
 
 ## Scaling to Mistral-Medium-3.5-128B
@@ -130,10 +135,13 @@ streamlit run dashboard/app.py
 
 Fixture mode is intentionally included so the eval/dashboard plumbing is runnable on
 a laptop. It is **not** a model-quality result and does **not** run the deployment
-gate. To evaluate real baseline-vs-tuned model behavior, set
-`generation.mode: openai_compatible` in `config.yaml` and point
-`generation.base_url` at a vLLM/Mistral/OpenAI-compatible `/v1/chat/completions`
-server.
+gate.
+
+For real baseline-vs-tuned numbers, use the recommended Colab workflow: train the LoRA,
+precompute base/tuned responses into `data/eval_set.jsonl`, then run the harness with
+`fixture_smoke_test: false`. See [`docs/colab_workflow.md`](docs/colab_workflow.md).
+Serving through vLLM or another OpenAI-compatible endpoint is also supported, but it is
+not the easiest path inside a single Colab session.
 
 ## Real model paths
 
@@ -193,7 +201,7 @@ Then serve the adapter or a merged model via vLLM and rerun the same evaluation 
 | `eval/harness.py` | orchestrates suites, writes results, calls gate | working |
 | `eval/usefulness.py` | usefulness metrics | working |
 | `eval/regression.py` | regression metrics | working |
-| `eval/judge.py` | LLM-as-judge prompts; provider call intentionally unwired | partial |
+| `eval/judge.py` | optional judge prompts; proxy metrics run by default, provider call unwired | optional |
 | `eval/gate.py` | promotion decision | working |
 | `dashboard/app.py` | baseline vs tuned vs deployed dashboard | working shell |
 | `serving/serve_vllm.md` | how to serve, and how it scales to 128B | doc |
