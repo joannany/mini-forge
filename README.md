@@ -5,13 +5,13 @@ customize a small open-weight model on domain data, then enforce model-quality
 **gates** before anything is promoted to production.
 
 > **Central product question**
-> *Did customization make the model more useful for the target use case,
+> Did customization make the model more useful for the target use case,
 > without introducing behavioral regressions (hallucination, over-refusal,
-> or unsafe confidence)?*
+> or unsafe confidence)?
 
-The project proves the full workflow on a small Mistral model and **documents how the
-same gates and serving path scale to Mistral-Medium-3.5-128B** — which is more credible
-than claiming to casually fine-tune a 128B model locally.
+The project proves the full workflow on a small Mistral model and documents how the
+same gates and serving path scale to Mistral-Medium-3.5-128B, so the pipeline is
+exercised end to end without requiring 128B-scale hardware.
 
 ---
 
@@ -23,17 +23,16 @@ questions better, without becoming less safe or less reliable.
 
 ### What the fine-tune is (and is NOT) for
 
-This is the single most important design decision, and the one most likely to be
-challenged.
+This is the central design decision in the project.
 
 - **Fine-tune teaches *behavior*** — compliant answer format, citation/grounding
   discipline, calibrated refusal, tone, and safety posture.
 - **RAG / context supplies *content*** — the current policy text. Policies change
-  often; you do **not** retrain to absorb a policy edit.
+  often, so the model is not retrained to absorb a policy edit.
 - Mini-Forge therefore **isolates and measures the behavioral delta** from
   fine-tuning, holding content constant.
 
-Fine-tuning a model to *memorize policy facts* is the canonical misuse of fine-tuning.
+Fine-tuning a model to memorize policy facts is the canonical misuse of fine-tuning.
 Mini-Forge deliberately does not do that.
 
 ### Data
@@ -58,9 +57,9 @@ policy docs
    -> monitoring / regression alerts                 (dashboard/app.py)
 ```
 
-**Build vs borrow:** borrow the training (Unsloth) and serving (vLLM); **build the
-evaluation, the gate, and the dashboard yourself** — that is the differentiator and
-the part you must be able to defend.
+**Build vs borrow:** the training (Unsloth) and serving (vLLM) are borrowed; the
+evaluation, the gate, and the dashboard are the project's own work, where the design
+effort is concentrated.
 
 ---
 
@@ -69,30 +68,33 @@ the part you must be able to defend.
 Two suites plus a promotion gate.
 
 **Usefulness** (`eval/usefulness.py`)
+
 - task success on a domain question set
 - rubric score via LLM-as-judge
 - instruction / format following
 - factuality / grounding against the source policy
 
 **Regression** (`eval/regression.py`)
+
 - hallucination rate
-- over-refusal rate (benign, in-scope questions the model *should* answer)
+- over-refusal rate (benign, in-scope questions the model should answer)
 - unsafe confidence — a calibration / abstention test: on unanswerable or
   out-of-scope questions, does the model over-claim or appropriately defer?
 - format adherence (compliant output structure)
 - tool-use reliability (if tool-calling is in scope)
 
 **Gate** (`eval/gate.py`)
-- promote the tuned model **only if** usefulness improves **and** every regression
-  metric stays within its threshold. Thresholds live in `config.yaml`.
 
-The over-refusal vs safety tension is a feature to surface, not hide: a model that
-refuses everything is "safe" and useless. The dashboard shows both.
+- promote the tuned model only if usefulness improves and every regression metric
+  stays within its threshold. Thresholds live in `config.yaml`.
+
+Over-refusal and safety pull against each other: a model that refuses everything is
+"safe" but useless, so the dashboard surfaces both.
 
 By default, factuality and hallucination use deterministic proxy checks so the project
-runs without a judge key. `eval/judge.py` defines the LLM-as-judge interface and prompts,
-but the provider call is intentionally unwired and fails loudly until configured; this
-prevents a stub judge from silently corrupting grounding metrics.
+runs without a judge key. `eval/judge.py` defines the LLM-as-judge interface and
+prompts, but the provider call is intentionally unwired and fails loudly until
+configured; this prevents a stub judge from silently corrupting grounding metrics.
 
 ---
 
@@ -102,10 +104,9 @@ Medium 3.5 is open-weight (modified MIT license, with a commercial exception abo
 enterprise revenue threshold) and is served with vLLM or SGLang on multi-GPU
 infrastructure. The official vLLM example currently uses `--tensor-parallel-size 8`;
 smaller GPU counts may be possible only with quantized or third-party variants. The MVP
-runs on a 7–8B model so iteration is fast and cheap; the *same* data prep, eval suites,
+runs on a 7–8B model so iteration is fast and cheap; the same data prep, eval suites,
 gate logic, and serving path apply unchanged at 128B. The main delta is infrastructure
-and the enterprise license note — both documented in `serving/serve_vllm.md`, not
-hand-waved.
+and the enterprise license note — both documented in `serving/serve_vllm.md`.
 
 ---
 
@@ -130,9 +131,9 @@ instruction-following, and rubric quality. `task_success` and `hallucination_rat
 are deterministic proxy metrics that saturate on this small eval set (0.0 and 1.0
 respectively for both models); they become meaningful once the LLM judge is wired
 (interface implemented in `eval/judge.py`) and the eval set is enlarged. This run
-demonstrates the gate producing a real, defensible verdict through the full
-pipeline — the point is the working evaluation, not the magnitude of any single
-number on two examples.
+demonstrates the gate producing a real verdict through the full pipeline; the result
+to focus on is the working evaluation, not the magnitude of any single number on a
+two-item set.
 
 ---
 
@@ -160,25 +161,24 @@ python -m eval.harness --config config.yaml
 streamlit run dashboard/app.py
 ```
 
-Fixture mode is intentionally included so the eval/dashboard plumbing is runnable on
-a laptop. It is **not** a model-quality result and does **not** run the deployment
-gate.
+Fixture mode is intentionally included so the eval/dashboard plumbing is runnable on a
+laptop. It is not a model-quality result and does not run the deployment gate.
 
 For real before/after numbers, use the recommended Colab workflow. The primary path is
-a **prompt intervention**: generate responses from the same base model with a bare
-prompt and with Mini-Forge's compliant system prompt, write those responses into
+a prompt intervention: generate responses from the same base model with a bare prompt
+and with Mini-Forge's compliant system prompt, write those responses into
 `data/eval_set.jsonl`, then run the real gate with `fixture_smoke_test: false`. This
 measures a behavioral prompt intervention, not a fine-tune. The source-tag and gate
 contract for this path is validated in the repo; model generation itself runs in Colab.
-See [`docs/colab_workflow.md`](docs/colab_workflow.md).
+See `docs/colab_workflow.md`.
 
 ## Real model paths
 
 ### Fast Colab path: prompt intervention
 
-This produces real gate numbers without LoRA training. It is the recommended first
-path for a fresh clone because it exercises the same gate without depending on a
-successful LoRA run:
+This produces real gate numbers without LoRA training. It is the recommended first path
+for a fresh clone because it exercises the same gate without depending on a successful
+LoRA run:
 
 ```bash
 python -m scripts.generate_prompt_baseline \
@@ -203,7 +203,7 @@ The resulting baseline is `prompt:bare`; the tuned condition is `prompt:complian
 
 For the fuller version, train the LoRA, generate base/tuned responses in the notebook,
 write them into `data/eval_set.jsonl`, then run the same gate. This path is implemented
-but has not yet been GPU-validated end to end. See [`docs/colab_workflow.md`](docs/colab_workflow.md).
+but has not yet been GPU-validated end to end. See `docs/colab_workflow.md`.
 
 ### Path A: evaluate a served model
 
@@ -239,10 +239,10 @@ python -m training.train_lora \
   --max-steps 80
 ```
 
-The training script defaults to T4-safe `fp16`; pass `--precision bf16` only on
-Ampere+ GPUs. It pre-tokenizes examples and uses `transformers.Trainer` directly,
-avoiding TRL's dataset multiprocessing path on Colab. This training path is implemented
-but still needs Colab/GPU validation.
+The training script defaults to T4-safe fp16; pass `--precision bf16` only on Ampere+
+GPUs. It pre-tokenizes examples and uses `transformers.Trainer` directly, avoiding TRL's
+dataset multiprocessing path on Colab. This training path is implemented but still needs
+Colab/GPU validation.
 
 Then serve the adapter or a merged model via vLLM and rerun the same evaluation gate.
 
