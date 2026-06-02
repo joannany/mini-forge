@@ -2,8 +2,8 @@
 data/prepare_data.py
 
 Validation, dedupe, PII scan, and train/eval leakage check for the synthetic
-instruction data. The leakage check is the one reviewers respect most: it proves your
-eval set never appeared in training, so usefulness gains are real, not memorization.
+instruction data. The leakage check verifies that eval questions do not also appear
+in the training set.
 
 Usage:
     python -m data.prepare_data --train data/synthetic_train.jsonl --eval data/eval_set.jsonl

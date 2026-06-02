@@ -151,9 +151,8 @@ def _rules_from_item(item: Dict) -> Iterable[float]:
 def task_success(items: List[Dict], responses: List[str]) -> float:
     """Fraction of answerable items the model actually answered correctly.
 
-    Method: for items with kind == "answerable", compare response to
-    item["reference"]. For free-form compliance answers, exact match is too brittle,
-    so use the judge (judge.correctness) or a keyed-fact checklist per item.
+    For answerable items, the deterministic implementation compares response coverage
+    against item["reference"] and applies a penalty for unsupported numeric claims.
     """
     scores = []
     for item, response in _expected_answerable_items(items, responses):
@@ -166,9 +165,9 @@ def task_success(items: List[Dict], responses: List[str]) -> float:
 def rubric_score(items: List[Dict], responses: List[str], cfg: dict) -> float:
     """Mean LLM-as-judge rubric score, normalized to [0, 1].
 
-    Method: define a fixed rubric (e.g., grounded-in-policy, cites source,
-    no advice beyond policy, correct compliant format) and have the judge score each
-    response against it. Keep the rubric versioned in this repo for reproducibility.
+    When an external judge is enabled, responses are scored against the fixed rubric in
+    eval.judge. Otherwise, a deterministic proxy combines grounding, citation,
+    overreach, and format checks.
     """
     scores = []
     for item, response in zip(items, responses):
@@ -195,9 +194,8 @@ def instruction_following(items: List[Dict], responses: List[str]) -> float:
     """Did the response obey explicit instructions in the prompt (format, length,
     'answer only from policy', required disclaimer, etc.)?
 
-    Method: most of this is checkable with deterministic rules per item
-    (regex / structure checks) — prefer rules over the judge where you can, for
-    cheaper and more reproducible scoring.
+    Uses deterministic per-item rules for required sections, phrases, forbidden
+    phrases, maximum length, citation requirements, and abstention behavior.
     """
     return _mean([_instruction_score(item, response or "") for item, response in zip(items, responses)])
 
@@ -205,9 +203,8 @@ def instruction_following(items: List[Dict], responses: List[str]) -> float:
 def factuality(items: List[Dict], responses: List[str], cfg: dict) -> float:
     """Are the claims grounded in the provided policy text (no fabricated rules)?
 
-    Method: judge.grounding(response, source_policy) — penalize any claim not
-    supported by the cited policy span. This is the usefulness-side mirror of the
-    hallucination_rate regression metric; keep their definitions consistent.
+    When an external judge is enabled, uses judge.grounding. Otherwise, uses the
+    deterministic grounding proxy implemented in this module.
     """
     scores = []
     for item, response in zip(items, responses):

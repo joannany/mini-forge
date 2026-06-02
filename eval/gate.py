@@ -7,8 +7,7 @@ Promote the tuned model to production ONLY if:
   (1) usefulness improved by at least `min_usefulness_gain`, AND
   (2) every regression metric stayed within its allowed delta vs the baseline.
 
-This is fully implemented because it is short and it is the conceptual core of the
-project. Everything upstream produces the numbers this function judges.
+Upstream evaluation code produces the metric dictionaries consumed by this module.
 """
 from dataclasses import dataclass, field
 from typing import Dict, List

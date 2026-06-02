@@ -1,9 +1,9 @@
 """Generate synthetic compliance instruction data from local policy documents.
 
-This script is deliberately useful without a generator model: it extracts policy-like
-sentences from public/plain-text docs and creates behavior-focused examples for SFT.
-If you later wire a generator model, use these deterministic examples as seed data and
-human-review targets.
+This script runs without a generator model. It extracts policy-like sentences from
+public/plain-text docs and creates behavior-focused examples for SFT.
+The deterministic examples can be used as seed data or human-review targets for a
+separate generator-based data pipeline.
 """
 import argparse
 import json
@@ -157,9 +157,10 @@ def main():
         if eval_every and idx % eval_every == 0:
             eval_item = dict(item)
             # Fixture mode is a plumbing smoke test, not a baseline-vs-tuned model
-            # evaluation. Use the same gold response for both sides so the default
-            # pipeline cannot manufacture a fake usefulness gain from an empty
-            # baseline. Real baseline responses come from generation.mode=openai_compatible.
+            # evaluation. The same gold response is used for both sides so the
+            # default pipeline cannot report a usefulness gain from missing baseline
+            # responses. Real baseline responses are written by the response
+            # generation scripts or generated through non-fixture provider modes.
             eval_item["base_response"] = item["response"]
             eval_item["tuned_response"] = item["response"]
             eval_item["base_response_source"] = "gold_fixture"

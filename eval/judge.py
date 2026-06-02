@@ -3,17 +3,17 @@ eval/judge.py
 
 Thin LLM-as-judge wrapper. Keep the judge model DIFFERENT from the model under test,
 keep prompts versioned in this file (reproducibility), and log raw judge outputs to
-results/ so scores are auditable — an enterprise-evaluation requirement, not a nicety.
+results/ so scores are auditable.
 
-Wire `_call_judge` to whatever you use: a hosted API, or a strong Mistral served via
-vLLM's OpenAI-compatible endpoint (see serving/serve_vllm.md).
+`_call_judge` is the provider boundary for hosted APIs or a model served through an
+OpenAI-compatible endpoint.
 """
 import json
 from typing import Dict
 
 
 def _call_judge(system: str, user: str, cfg: dict) -> str:
-    """Return the judge model's raw text. TODO: implement your provider call.
+    """Return raw text from the configured judge model.
 
     Example (OpenAI-compatible client pointed at a vLLM server):
         from openai import OpenAI

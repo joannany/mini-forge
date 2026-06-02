@@ -36,7 +36,10 @@ def _looks_like_confident_claim(text: str) -> bool:
 
 def hallucination_rate(items: List[Dict], responses: List[str], cfg: dict) -> float:
     """Fraction of answerable items where the response asserts a rule/fact NOT
-    supported by the source policy. Method: judge.grounding flags unsupported claims.
+    supported by the source policy.
+
+    Uses judge.grounding when an external judge is enabled; otherwise uses the
+    deterministic grounding proxy from eval.usefulness.
     """
     scoped = [
         (item, response or "")
@@ -65,8 +68,7 @@ def hallucination_rate(items: List[Dict], responses: List[str], cfg: dict) -> fl
 def over_refusal_rate(items: List[Dict], responses: List[str]) -> float:
     """Fraction of BENIGN, in-scope questions the model refused to answer.
 
-    A compliant model that refuses legitimate questions is safe but useless — this
-    metric is the counterweight to safety. Operates on kind == "benign_in_scope".
+    Operates on items with kind == "benign_in_scope".
     """
     benign = [(it, r) for it, r in zip(items, responses)
               if it.get("kind") == "benign_in_scope"]
@@ -80,10 +82,8 @@ def unsafe_confidence_rate(items: List[Dict], responses: List[str]) -> float:
     """Calibration / abstention test. On UNANSWERABLE or OUT-OF-SCOPE questions, does
     the model over-claim (assert a confident answer) instead of deferring?
 
-    This is the metric that matters most in compliance: a confidently-wrong answer to
-    a question the policy does not cover is a regulatory liability. Operates on
-    kind in {"out_of_scope", "unanswerable"}; an over-claim = a non-deferring,
-    confident response.
+    Operates on kind in {"out_of_scope", "unanswerable"}; an over-claim is a
+    non-deferring, confident response.
     """
     scope = [(it, r) for it, r in zip(items, responses)
              if it.get("kind") in ("out_of_scope", "unanswerable")]
@@ -113,7 +113,8 @@ def format_adherence(items: List[Dict], responses: List[str]) -> float:
 
 def tool_use_reliability(items: List[Dict], responses: List[str]) -> float:
     """If tool-calling is in scope: fraction of tool items with a well-formed,
-    correct tool call (right tool, valid arguments). Drop if not using tools.
+    correct tool call (right tool, valid arguments). Returns 1.0 when the eval set has
+    no tool items.
     """
     tool_items = [
         (item, response or "")

@@ -3,7 +3,7 @@ eval/harness.py
 
 Orchestrates the evaluation: run both suites on the baseline and the tuned model,
 aggregate to a usefulness score, write a results JSON for the dashboard, and call the
-gate. The per-metric logic lives in usefulness.py / regression.py (the parts you build).
+gate. The per-metric logic lives in usefulness.py and regression.py.
 
 Usage:
     python -m eval.harness --config config.yaml
@@ -40,9 +40,9 @@ def load_eval_set(path):
 def run_suite(model_name, eval_items, cfg, model_role):
     """Run one model over the eval set and return a flat metric dict.
 
-    NOTE: generating model responses (calling the base vs tuned model) is left to you
-    — wire it to your vLLM server or a transformers pipeline. Here we assume each item
-    has already been answered and carries a `response` field, or you fill `generate()`.
+    Responses are produced through eval.provider.generate_response according to
+    generation.mode. Fixture mode reads precomputed response fields; other modes call
+    the configured model provider.
     """
     responses = [
         generate_response(model_name, item, cfg, model_role=model_role)
@@ -55,8 +55,8 @@ def run_suite(model_name, eval_items, cfg, model_role):
     metrics["rubric_score"] = usefulness.rubric_score(eval_items, responses, cfg)
     metrics["instruction_following"] = usefulness.instruction_following(eval_items, responses)
     metrics["factuality"] = usefulness.factuality(eval_items, responses, cfg)
-    # Aggregate usefulness over available numeric components. This keeps the harness
-    # robust if an optional judge-backed metric is intentionally unavailable.
+    # Aggregate usefulness over available numeric components. Optional judge-backed
+    # metrics can return no numeric value when a judge provider is unavailable.
     metrics["usefulness"] = mean_available(metrics, USEFULNESS_COMPONENTS)
 
     # ---- regression ----

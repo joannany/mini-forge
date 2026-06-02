@@ -1,9 +1,9 @@
 """
 dashboard/app.py
 
-The visible artifact: baseline vs tuned vs the gate decision. This is what a reviewer
-actually looks at, so it reads results/latest.json and shows, at a glance, whether
-customization helped and whether it was safe to promote.
+Streamlit dashboard for baseline metrics, tuned metrics, and the gate decision.
+Reads results/latest.json and displays usefulness gain, regression flags, and
+promotion status.
 
 Run:  streamlit run dashboard/app.py
 """

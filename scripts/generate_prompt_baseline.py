@@ -1,12 +1,11 @@
 """Generate real before/after responses without LoRA training.
 
-This script evaluates a behavioral prompt intervention through the same Mini-Forge
-gate:
+This script evaluates a behavioral prompt intervention through the Mini-Forge gate:
 - baseline: bare/minimal prompt
 - tuned: compliant Mini-Forge system prompt
 
-It is not a fine-tune. It is a fast, honest way to produce real model-generated gate
-numbers when the LoRA path is blocked by GPU/library issues.
+It is not a fine-tune. It produces model-generated baseline and tuned responses
+without training a LoRA adapter.
 """
 import argparse
 import json

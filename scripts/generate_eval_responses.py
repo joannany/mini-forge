@@ -1,9 +1,9 @@
 """Generate real base/tuned responses for fixture-mode evaluation.
 
-This script is intended for Colab/RunPod/Kaggle after training a LoRA adapter. It
-avoids the fragile "run a localhost vLLM server inside the same notebook" path:
-responses are generated once, written into `data/eval_set.jsonl`, and the normal
-harness runs in fixture mode with `fixture_smoke_test: false`.
+This script supports notebook and hosted-GPU environments after training a LoRA
+adapter. It precomputes base and tuned responses, writes them into
+`data/eval_set.jsonl`, and lets the harness run in fixture mode with
+`fixture_smoke_test: false`.
 """
 import argparse
 import json
