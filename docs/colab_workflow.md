@@ -1,7 +1,7 @@
 # Colab Workflow: Real Before/After Gate
 
 This is the recommended path for producing real Mini-Forge numbers on a single Colab
-GPU. It does **not** run a local vLLM server. It generates outputs inside the notebook,
+GPU. It does not run a local vLLM server. It generates outputs inside the notebook,
 writes them into `data/eval_set.jsonl`, then runs the same harness in fixture mode with
 the smoke-test guard disabled.
 
@@ -12,7 +12,7 @@ still needs GPU validation end to end.
 
 ## 1. Clone the repo
 
-```python
+```bash
 !git clone https://github.com/joannany/mini-forge.git
 %cd mini-forge
 ```
@@ -21,7 +21,7 @@ If the repo is private, use a GitHub token or Colab's GitHub integration.
 
 ## 2. Install dependencies
 
-```python
+```bash
 !pip install -q unsloth datasets transformers accelerate pyyaml
 ```
 
@@ -30,7 +30,7 @@ setup and keep the remaining commands the same.
 
 ## 3. Generate and validate data
 
-```python
+```bash
 !python -m data.generate_synthetic \
   --docs data/policy_docs \
   --out data/synthetic_train.jsonl \
@@ -49,9 +49,9 @@ This measures a behavioral intervention through the gate:
 - baseline = same model with a bare prompt
 - tuned = same model with Mini-Forge's compliant system prompt
 
-It is not a fine-tune, and should be described that way.
+This is a prompt intervention, not a fine-tune.
 
-```python
+```bash
 !python -m scripts.generate_prompt_baseline \
   --eval data/eval_set.jsonl \
   --model unsloth/mistral-7b-instruct-v0.3-bnb-4bit
@@ -59,7 +59,7 @@ It is not a fine-tune, and should be described that way.
 
 Then run the real gate:
 
-```python
+```bash
 !python - <<'PY'
 import yaml
 path = "config.yaml"
@@ -72,15 +72,15 @@ PY
 !python -m eval.harness --config config.yaml
 ```
 
-Now the gate is real because the fixture fields contain model-generated outputs, not
-gold answers or empty strings.
+The gate now runs on model-generated outputs rather than gold answers or empty strings,
+so the result is a real before/after.
 
 ## 5. Optional full path: train a LoRA adapter
 
 This path is implemented, but it has not yet been validated end to end on a Colab GPU.
 Use it as the fuller LoRA version after the prompt-intervention result is captured.
 
-```python
+```bash
 !python -m training.train_lora \
   --train data/synthetic_train.clean.jsonl \
   --base-model unsloth/mistral-7b-instruct-v0.3-bnb-4bit \
@@ -88,35 +88,29 @@ Use it as the fuller LoRA version after the prompt-intervention result is captur
   --max-steps 80
 ```
 
-The script defaults to `--precision fp16`, which is required on free Colab T4 GPUs.
-Use `--precision bf16` only on Ampere+ GPUs such as A100/L4/H100.
-It pre-tokenizes examples and uses `transformers.Trainer` directly to avoid TRL's
-dataset multiprocessing path.
+The script defaults to `--precision fp16`, which is required on free Colab T4 GPUs. Use
+`--precision bf16` only on Ampere+ GPUs such as A100/L4/H100. It pre-tokenizes examples
+and uses `transformers.Trainer` directly to avoid TRL's dataset multiprocessing path.
 
 If adapter loading fails later, merge/save the model using Unsloth's current notebook
 pattern, then pass the merged model directory as `--tuned-model`.
 
 ## 6. Generate LoRA eval responses
 
-```python
+```bash
 !python -m scripts.generate_eval_responses \
   --eval data/eval_set.jsonl \
   --base-model unsloth/mistral-7b-instruct-v0.3-bnb-4bit \
   --tuned-model training/outputs/tuned-lora
 ```
 
-This writes:
-
-- `base_response`
-- `tuned_response`
-- `base_response_source`
-- `tuned_response_source`
-
-The source fields are required before the harness will run a non-smoke fixture gate.
+This writes `base_response`, `tuned_response`, `base_response_source`, and
+`tuned_response_source`. The source fields are required before the harness will run a
+non-smoke fixture gate.
 
 ## 7. Run the real LoRA gate
 
-```python
+```bash
 !python - <<'PY'
 import yaml
 path = "config.yaml"
@@ -131,6 +125,6 @@ PY
 
 ## Optional: serving artifact
 
-For a portfolio screenshot, serve the model separately with vLLM or SGLang and hit a
-few `/v1/chat/completions` requests. Keep that serving demo separate from the eval loop;
-the eval numbers above are easier to reproduce and less fragile in Colab.
+To produce a serving screenshot, serve the model separately with vLLM or SGLang and send
+a few `/v1/chat/completions` requests. Keep that serving demo separate from the eval
+loop; the eval numbers above are easier to reproduce and less fragile in Colab.
